@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:fastfood/common/color_extension.dart';
 import 'package:fastfood/fastfood/core/models/firebase/food_request.dart';
 import 'package:fastfood/fastfood/core/models/food/food.dart';
@@ -7,6 +9,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:fastfood/common_widget/round_icon_button.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ItemDetailsView extends StatefulWidget {
   final Food food;
@@ -21,6 +24,24 @@ class _ItemDetailsViewState extends State<ItemDetailsView> {
   int qty = 1;
   bool isFav = false;
   List<Map<String, dynamic>> cart = [];
+  @override
+  void initState() {
+    super.initState();
+    _loadCart();
+  }
+
+  _loadCart() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? cartStr = prefs.getString('cart');
+    if (cartStr != null) {
+      cart = List<Map<String, dynamic>>.from(jsonDecode(cartStr));
+    }
+  }
+
+  _saveCart() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('cart', jsonEncode(cart));
+  }
   @override
   Widget build(BuildContext context) {
     print(cart);
@@ -438,6 +459,7 @@ class _ItemDetailsViewState extends State<ItemDetailsView> {
                                                                         price *
                                                                             qty
                                                                   });
+                                                                    _saveCart();
                                                                 });
                                                               },
                                                             ),

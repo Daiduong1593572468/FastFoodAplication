@@ -1,7 +1,8 @@
 import 'package:fastfood/common/color_extension.dart';
 import 'package:fastfood/common_widget/round_button.dart';
 import 'package:flutter/material.dart';
-
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'checkout_view.dart';
 
 class MyOrderView extends StatefulWidget {
@@ -13,6 +14,22 @@ class MyOrderView extends StatefulWidget {
 
 class _MyOrderViewState extends State<MyOrderView> {
   List<Map<String, dynamic>> cart = [];
+  @override
+  void initState() {
+    super.initState();
+    _loadCart();
+  }
+
+  _loadCart() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? cartStr = prefs.getString('cart');
+    if (cartStr != null) {
+      setState(() {
+        cart = List<Map<String, dynamic>>.from(jsonDecode(cartStr));
+      });
+    }
+  }
+
   List itemArr = [
     {"name": "Beef Burger", "qty": "1", "price": 16.0},
     {"name": "Classic Burger", "qty": "1", "price": 14.0},
@@ -204,7 +221,7 @@ class _MyOrderViewState extends State<MyOrderView> {
                         children: [
                           Expanded(
                             child: Text(
-                              "${cObj["Name"].toString()} x${cObj["qty"].toString()}",
+                              "${cObj["name"].toString()} x${cObj["qty"].toString()}",
                               style: TextStyle(
                                   color: TColor.primaryText,
                                   fontSize: 13,
@@ -328,7 +345,14 @@ class _MyOrderViewState extends State<MyOrderView> {
                               fontWeight: FontWeight.w700),
                         ),
                         Text(
-                          "\$70",
+                          (cart.fold<double>(
+                                      0,
+                                      (previousValue, item) =>
+                                          previousValue +
+                                          (item['price'] as double? ?? 0)) +
+                                  68 +
+                                  2)
+                              .toString(),
                           style: TextStyle(
                               color: TColor.primary,
                               fontSize: 22,
