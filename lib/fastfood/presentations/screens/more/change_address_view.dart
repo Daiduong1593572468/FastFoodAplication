@@ -4,7 +4,9 @@ import 'package:fastfood/common_widget/round_textfield.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 class ChangeAddressView extends StatefulWidget {
   const ChangeAddressView({super.key});
@@ -14,22 +16,36 @@ class ChangeAddressView extends StatefulWidget {
 }
 
 class _ChangeAddressViewState extends State<ChangeAddressView> {
-  GoogleMapController? _controller;
-
+  GoogleMapController? googleMapController;
+  List<LatLng> polylineCoordinates = [];
   final locations = const [
     LatLng(37.42796133580664, -122.085749655962),
   ];
-
+  static const LatLng sourceLocation =
+      LatLng(37.42796133580664, -122.085749655962);
+  static const LatLng destLocation =
+      LatLng(37.43296265331129, -122.08832357078792);
+  Set<Marker> markers = {};
   late List<MarkerData> _customMarkers;
 
-  static const CameraPosition _kLake = CameraPosition(
-      bearing: 192.8334901395799,
-      target: LatLng(37.42796133580664, -122.085749655962),
-      // tilt: 59.440717697143555,
-      zoom: 14.151926040649414);
+  void getPolyPoints() async {
+    PolylinePoints polylinePoints = PolylinePoints();
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+      "AIzaSyCGjUBxZcNPaKfZpZAa7fTyVs5e5Qo0zGY",
+      PointLatLng(sourceLocation.latitude, sourceLocation.longitude),
+      PointLatLng(destLocation.latitude, destLocation.longitude),
+    );
+    if (result.points.isNotEmpty) {
+      result.points.forEach((PointLatLng point) {
+        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      });
+    }
+  }
 
   @override
   void initState() {
+    getPolyPoints();
+
     super.initState();
     _customMarkers = [
       MarkerData(
@@ -58,83 +74,118 @@ class _ChangeAddressViewState extends State<ChangeAddressView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: TColor.white,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Image.asset("assets/img/btn_back.png", width: 20, height: 20),
-        ),
-        centerTitle: false,
-        title: Text(
-          "Change Address",
-          style: TextStyle(
-              color: TColor.primaryText,
-              fontSize: 20,
-              fontWeight: FontWeight.w800),
-        ),
+        title: const Text('Change Address'),
       ),
-      body: CustomGoogleMapMarkerBuilder(
-        //screenshotDelay: const Duration(seconds: 4),
-        customMarkers: _customMarkers,
-        builder: (BuildContext context, Set<Marker>? markers) {
-          if (markers == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return GoogleMap(
-            mapType: MapType.normal,
-            initialCameraPosition: _kLake,
-            compassEnabled: false,
-            gestureRecognizers: Set()
-              ..add(Factory<PanGestureRecognizer>(
-                () => PanGestureRecognizer(),
-              )),
-            markers: markers,
-            onMapCreated: (GoogleMapController controller) {
-              _controller = controller;
-            },
-          );
-        },
-      ),
-      bottomNavigationBar: BottomAppBar(
-          child: SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric( vertical: 15 , horizontal: 25),
-            child: RoundTextfield(
-              hintText: "Search Address",
-              left: Icon(Icons.search, color: TColor.primaryText),
+      body: Column(
+        children: <Widget>[
+          Container(
+            padding: EdgeInsets.all(16.0),
+            child: const Text(
+              'GPS',
+              style: TextStyle(fontSize: 24.0),
             ),
           ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric( horizontal: 25),
-            child: Row(children: [
-
-              Image.asset('assets/img/fav_icon.png', width: 35, height: 35 ), 
-
-              const SizedBox(width: 8,),
-
-              Expanded(
-                child: Text(
-                  "Choose a saved place",
-                  style: TextStyle(
-                      color: TColor.primaryText,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600),
-                ),
+          Container(
+            height: 500,
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: sourceLocation,
+                zoom: 14.5,
               ),
-
-              Image.asset('assets/img/btn_next.png', width: 15, height: 15, color: TColor.primaryText, )
-
-            ]),
+              polylines: {
+                Polyline(
+                  polylineId: PolylineId('route'),
+                  points: polylineCoordinates,
+                )
+              },
+              markers: {
+                const Marker(
+                    markerId: MarkerId('source'), position: sourceLocation),
+                const Marker(
+                    markerId: MarkerId('destination'), position: destLocation),
+              },
+              zoomControlsEnabled: false,
+              mapType: MapType.normal,
+              onMapCreated: (GoogleMapController controller) {
+                googleMapController = controller;
+              },
+            ),
           ),
+          Container(
+            width: 300,
+            child: Divider(color: Colors.black, thickness: 1),
+          ),
+          Container(
+            height: 50,
+            margin: EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: <Widget>[
+                ElevatedButton(
+                  onPressed: () async {
+                    Position position = await _determinePosition();
 
+                    googleMapController?.animateCamera(
+                        CameraUpdate.newCameraPosition(CameraPosition(
+                            target:
+                                LatLng(position.latitude, position.longitude),
+                            zoom: 14)));
 
+                    markers.clear();
+
+                    markers.add(Marker(
+                        markerId: const MarkerId('currentLocation'),
+                        position:
+                            LatLng(position.latitude, position.longitude)));
+
+                    setState(() {});
+                  },
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: const Color.fromARGB(255, 248, 248, 248),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  child: Container(
+                    child: Icon(Icons.location_on,
+                        size: 24.0, color: Colors.black),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
-      ))),
+      ),
     );
+  }
+
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+    if (!serviceEnabled) {
+      return Future.error('Location services are disabled');
+    }
+
+    permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+
+      if (permission == LocationPermission.denied) {
+        return Future.error("Location permission denied");
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return Future.error('Location permissions are permanently denied');
+    }
+
+    Position position = await Geolocator.getCurrentPosition();
+
+    return position;
   }
 }

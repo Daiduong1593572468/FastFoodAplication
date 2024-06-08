@@ -11,12 +11,11 @@ import 'package:fastfood/fastfood/presentations/screens/map/time_run_map.dart';
 class RunMap extends StatefulWidget {
   const RunMap({super.key});
   static final String routeName = 'run_map_screen';
-
   @override
-  State<RunMap> createState() => RunMapState();
+  State<RunMap> createState() => MapSampleState();
 }
 
-class RunMapState extends State<RunMap> {
+class MapSampleState extends State<RunMap> {
   final Completer<GoogleMapController> _controller =
       Completer<GoogleMapController>();
 
@@ -34,91 +33,23 @@ class RunMapState extends State<RunMap> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: <Widget>[
-          Container(
-            padding: EdgeInsets.all(16.0),
-            child: const Text(
-              'GPS',
-              style: TextStyle(fontSize: 24.0),
-            ),
-          ),
-          Container(
-            height: 500,
-            child: GoogleMap(
-              mapType: MapType.hybrid,
-              initialCameraPosition: _kGooglePlex,
-              onMapCreated: (GoogleMapController controller) {
-                _controller.complete(controller);
-              },
-            ),
-          ),
-          Container(
-            height: 50,
-            margin: EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: <Widget>[
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: const Color.fromARGB(255, 248, 248, 248),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                  child: const Column(
-                    children: [
-                      Icon(Icons.map, size: 24.0, color: Colors.black),
-                      Text('Map', style: TextStyle(color: Colors.black)),
-                    ],
-                  ),
-                ),
-                VerticalDivider(color: Colors.black, thickness: 1),
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: const Color.fromARGB(255, 248, 248, 248),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                  child: Image.asset('assets/images/spotify.png',
-                      width: 30, height: 50),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 300,
-            child: Divider(color: Colors.black, thickness: 1),
-          ),
-          Align(
-            alignment: Alignment.center,
-            child: ElevatedButton(
-              onPressed: () {
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(builder: (context) => RunTrackScreen()),
-                // );
-              },
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: const Color.fromARGB(255, 248, 248, 248),
-                shape: CircleBorder(),
-              ),
-              child: Container(
-                height: 50,
-                width: 50,
-                alignment: Alignment.center,
-                child: Text('Run', style: TextStyle(color: Colors.black)),
-              ),
-            ),
-          ),
-        ],
+      body: GoogleMap(
+        mapType: MapType.hybrid,
+        initialCameraPosition: _kGooglePlex,
+        onMapCreated: (GoogleMapController controller) {
+          _controller.complete(controller);
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _goToTheLake,
+        label: const Text('To the lake!'),
+        icon: const Icon(Icons.directions_boat),
       ),
     );
+  }
+
+  Future<void> _goToTheLake() async {
+    final GoogleMapController controller = await _controller.future;
+    await controller.animateCamera(CameraUpdate.newCameraPosition(_kLake));
   }
 }

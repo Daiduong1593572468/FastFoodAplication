@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:fastfood/common/color_extension.dart';
 import 'package:fastfood/common_widget/round_button.dart';
+import 'package:fastfood/fastfood/presentations/screens/more/order.dart';
+import 'package:fastfood/fastfood/presentations/screens/more/stripe_service.dart';
 import 'package:flutter/material.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'change_address_view.dart';
 import 'checkout_message_view.dart';
@@ -19,6 +23,25 @@ class _CheckoutViewState extends State<CheckoutView> {
     {"name": "**** **** **** 2187", "icon": "assets/img/visa_icon.png"},
     {"name": "test@gmail.com", "icon": "assets/img/paypal.png"},
   ];
+  List<Map<String, dynamic>> cart = [];
+  @override
+  void initState() {
+    super.initState();
+    _loadCart();
+  }
+
+  _loadCart() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? cartStr = prefs.getString('cart');
+    if (cartStr != null) {
+      cart = List<Map<String, dynamic>>.from(jsonDecode(cartStr));
+    }
+  }
+
+  _saveCart() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('cart', jsonEncode(cart));
+  }
 
   int selectMethod = -1;
 
@@ -306,10 +329,17 @@ class _CheckoutViewState extends State<CheckoutView> {
                               fontWeight: FontWeight.w500),
                         ),
                         Text(
-                          "\$66",
+                          (cart.fold<double>(
+                                      0,
+                                      (previousValue, item) =>
+                                          previousValue +
+                                          (item['price'] as double? ?? 0)) +
+                                  68 +
+                                  2)
+                              .toString(),
                           style: TextStyle(
-                              color: TColor.primaryText,
-                              fontSize: 15,
+                              color: TColor.primary,
+                              fontSize: 22,
                               fontWeight: FontWeight.w700),
                         )
                       ],
@@ -329,14 +359,30 @@ class _CheckoutViewState extends State<CheckoutView> {
                     const EdgeInsets.symmetric(vertical: 20, horizontal: 25),
                 child: RoundButton(
                     title: "Send Order",
-                    onPressed: () {
-                      showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (context) {
-                            return const CheckoutMessageView();
-                          });
+                    onPressed: () async {
+                      var items = [
+                        {"name": "Pizza", "price": 20, "qty": 2},
+                        {"name": "Burger", "price": 10, "qty": 1}
+                      ];
+
+                      print('Button pressed');
+
+                      await StripeService.stripePaymentCheckout(
+                          items, 500, context, mounted, onSuccess: () {
+                        print("Success");
+                        showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (context) {
+                              return const CheckoutMessageView();
+                            });
+                      }, onCancel: () {
+                        print("Canceled");
+                      }, onError: (e) {
+                        print("Error: $e");
+                      });
+                      print('stripePaymentCheckout method called');
                     }),
               ),
             ],
